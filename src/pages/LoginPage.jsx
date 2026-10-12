@@ -10,7 +10,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, loginAsDemo } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -97,6 +97,30 @@ export default function LoginPage() {
                 ? (isSignUp ? 'Creating Account...' : 'Signing In...')
                 : (isSignUp ? 'Create Account' : 'Sign In')
               }
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{
+                marginTop: '0.75rem',
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                background: 'rgba(255, 255, 255, 0.05)',
+                color: 'var(--text-primary)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onClick={() => {
+                loginAsDemo();
+                navigate('/dashboard');
+              }}
+              id="btn-demo-mode"
+            >
+              ⚡ Explore as Guest (Local Demo)
             </button>
           </form>
 

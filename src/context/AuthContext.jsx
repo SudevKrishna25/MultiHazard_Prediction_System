@@ -4,29 +4,66 @@ import { supabase } from '../lib/supabase';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try {
+      const demo = localStorage.getItem('multihazard_demo_user');
+      return demo ? JSON.parse(demo) : null;
+    } catch {
+      return null;
+    }
+  });
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+    let subscription = null;
+    try {
+      // Get initial session
+      supabase.auth.getSession().then(({ data: { session } }) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        if (session?.user) {
+          setUser(session.user);
+        }
         setLoading(false);
-      }
-    );
+      }).catch((err) => {
+        console.warn('Supabase auth session check failed:', err);
+        setLoading(false);
+      });
 
-    return () => subscription.unsubscribe();
+      // Listen for auth changes
+      const authListener = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          setSession(session);
+          if (session?.user) {
+            setUser(session.user);
+          }
+          setLoading(false);
+        }
+      );
+      subscription = authListener?.data?.subscription;
+    } catch (err) {
+      console.warn('Supabase init warning:', err);
+      setLoading(false);
+    }
+
+    return () => {
+      if (subscription) subscription.unsubscribe();
+    };
   }, []);
+
+  const loginAsDemo = () => {
+    const demoUser = {
+      id: 'demo-guest-user',
+      email: 'guest@multihazard.ai',
+      user_metadata: { full_name: 'Guest Researcher' }
+    };
+    try {
+      localStorage.setItem('multihazard_demo_user', JSON.stringify(demoUser));
+    } catch {}
+    setUser(demoUser);
+    setLoading(false);
+    return demoUser;
+  };
 
   const signUp = async (email, password) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
@@ -41,11 +78,18 @@ export function AuthProvider({ children }) {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    try {
+      localStorage.removeItem('multihazard_demo_user');
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('Sign out warning:', err);
+    } finally {
+      setUser(null);
+      setSession(null);
+    }
   };
 
-  const value = { user, session, loading, signUp, signIn, signOut };
+  const value = { user, session, loading, signUp, signIn, signOut, loginAsDemo };
 
   return (
     <AuthContext.Provider value={value}>
